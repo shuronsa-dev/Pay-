@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Оплата на IBAN</title>
+<style>
+body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#f4f6f8;color:#171717;margin:0}
+.w{max-width:620px;margin:auto;padding:18px}
+.c{background:#fff;padding:22px;border-radius:18px;box-shadow:0 2px 16px #0001;margin:12px 0}
+h1{font-size:24px;margin:0 0 16px}
+label{display:block;font-weight:700;margin:14px 0 6px}
+input,textarea{width:100%;box-sizing:border-box;padding:14px;border:1px solid #aaa;border-radius:11px;font:16px system-ui;background:#fff;color:#111}
+textarea{min-height:90px;resize:vertical}
+button,a.b{width:100%;display:block;box-sizing:border-box;border:0;border-radius:11px;padding:14px;margin-top:10px;font:inherit;font-weight:750;text-align:center;text-decoration:none;cursor:pointer}
+.main{background:#111;color:#fff}.privat{background:#1683ff;color:#fff}.mono{background:#111;color:#fff}.pumb{background:#1769e0;color:#fff}.oschad{background:#087bb8;color:#fff}.raif{background:#ffd800;color:#111}.abank{background:#6f3cc3;color:#fff}.sense{background:#e43b8d;color:#fff}.secondary{background:#e9ecef;color:#111}
+.hide{display:none}.code{font-family:monospace;overflow-wrap:anywhere}.amountShow{font-size:28px;font-weight:800}.muted{color:#666;font-size:13px;line-height:1.45}
+</style>
+</head>
+<body>
+<div class="w">
+
+<div class="c" id="generator">
+<h1>Створити посилання на оплату</h1>
+<p><b>ФОП Пилипенко Олександр Михайлович</b></p>
+
+<label for="sumInput">Сума, грн</label>
+<input id="sumInput" type="text" inputmode="decimal" autocomplete="off" placeholder="Введіть суму">
+
+<label for="purposeInput">За що / призначення платежу</label>
+<textarea id="purposeInput" autocomplete="off" placeholder="Наприклад: За товар Dell Pro 15 Essential"></textarea>
+
+<button type="button" class="main" id="createBtn">Створити посилання для клієнта</button>
+
+<div id="result" class="hide">
+<label>Готове посилання для клієнта</label>
+<div id="out" class="code"></div>
+<button type="button" class="secondary" id="copyBtn">Скопіювати посилання</button>
+<a id="preview" class="b main" target="_blank" rel="noopener">Перевірити сторінку клієнта</a>
+</div>
+</div>
+
+<div class="c hide" id="payment">
+<h1>Оплата за реквізитами</h1>
+<p><b>ФОП Пилипенко Олександр Михайлович</b></p>
+<div id="payAmount" class="amountShow"></div>
+<p><b>IBAN:</b><br><span class="code">UA833348510000000026005196656</span></p>
+<p><b>РНОКПП:</b> 3080514576</p>
+<p><b>Призначення:</b> <span id="payPurpose"></span></p>
+
+<p><b>Оберіть свій банк:</b></p>
+<a id="privat" class="b privat">Privat24</a>
+<div id="privatHint" style="margin:8px 0 14px;padding:12px;border:1px solid #d7dce1;border-radius:11px;background:#f7f8fa">
+  <div class="muted" style="margin-bottom:5px">Для Privat24 скопіюйте призначення платежу:</div>
+  <div id="privatPurpose" style="font-weight:700;overflow-wrap:anywhere"></div>
+  <button type="button" class="secondary" id="copyPurposeBtn" style="margin-top:8px">Копіювати призначення</button>
+</div>
+<a id="mono" class="b mono">monobank</a>
+<a id="pumb" class="b pumb">ПУМБ</a>
+<a id="oschad" class="b oschad">Ощадбанк</a>
+<a id="raif" class="b raif">Raiffeisen</a>
+<a id="abank" class="b abank">àbank24</a>
+<a id="sense" class="b sense">Sense Bank</a>
+
+<button type="button" class="secondary" id="copyDetailsBtn">Скопіювати реквізити</button>
+<p class="muted">Перед підтвердженням платежу перевірте суму, одержувача та призначення у застосунку банку.</p>
+</div>
+
+</div>
+<script>
+const NAME="ФОП Пилипенко Олександр Михайлович";
+const IBAN="UA833348510000000026005196656";
+const TAX="3080514576";
+
+const $ = id => document.getElementById(id);
+
+function cp1251(s){
+  let m={};
+  for(let i=0;i<32;i++)m[String.fromCharCode(0x410+i)]=0xC0+i;
+  for(let i=0;i<32;i++)m[String.fromCharCode(0x430+i)]=0xE0+i;
+  Object.assign(m,{"Є":0xAA,"І":0xB2,"Ї":0xAF,"Ґ":0xA5,"є":0xBA,"і":0xB3,"ї":0xBF,"ґ":0xB4,"’":0x27,"—":0x2D,"–":0x2D});
+  let a=[];
+  for(const c of s){
+    let n=c.charCodeAt(0);
+    a.push(n<128?n:(m[c]??0x3F));
+  }
+  return new Uint8Array(a);
+}
+function b64url(bytes){
+  let s="";
+  bytes.forEach(b=>s+=String.fromCharCode(b));
+  return btoa(s).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+}
+function nbu(a,p){
+  let payload=["BCD","002","2","UCT","",NAME,IBAN,"UAH"+Number(a).toFixed(2),TAX,"","",p,""].join("\n");
+  return "https://bank.gov.ua/qr/"+b64url(cp1251(payload));
+}
+function intent(url,pkg){
+  let u=new URL(url);
+  return "intent://"+u.host+u.pathname+u.search+"#Intent;scheme=https;package="+pkg+";S.browser_fallback_url="+encodeURIComponent(url)+";end";
+}
+function cleanBaseUrl(){
+  return location.origin + location.pathname;
+}
+function createClientLink(){
+  let raw=$("sumInput").value.trim().replace(/\s/g,"").replace(",",".");
+  let purpose=$("purposeInput").value.trim();
+  let amount=Number(raw);
+
+  if(!Number.isFinite(amount) || amount<=0){
+    alert("Введіть правильну суму.");
+    $("sumInput").focus();
+    return;
+  }
+  if(!purpose){
+    alert("Вкажіть, за що здійснюється оплата.");
+    $("purposeInput").focus();
+    return;
+  }
+
+  let u=new URL(cleanBaseUrl());
+  u.searchParams.set("pay","1");
+  u.searchParams.set("a",amount.toFixed(2));
+  u.searchParams.set("p",purpose);
+
+  $("out").textContent=u.href;
+  $("preview").href=u.href;
+  $("result").classList.remove("hide");
+}
+async function copyText(t,msg){
+  try{
+    await navigator.clipboard.writeText(t);
+    alert(msg);
+  }catch(e){
+    prompt("Скопіюйте:",t);
+  }
+}
+
+$("createBtn").addEventListener("click",createClientLink);
+$("copyBtn").addEventListener("click",()=>copyText($("out").textContent,"Посилання скопійовано"));
+
+const q=new URLSearchParams(location.search);
+const clientMode=q.get("pay")==="1";
+const a=q.get("a");
+const p=q.get("p");
+
+if(clientMode && a && p && Number(a)>0){
+  $("generator").classList.add("hide");
+  $("payment").classList.remove("hide");
+
+  $("payAmount").textContent=Number(a).toLocaleString("uk-UA",{minimumFractionDigits:2,maximumFractionDigits:2})+" грн";
+  $("payPurpose").textContent=p;
+
+  const pay=nbu(a,p);
+  $("privat").href=intent(pay,"ua.privatbank.ap24");
+  $("mono").href=intent(pay,"com.ftband.mono");
+  $("pumb").href=intent(pay,"com.fuib.android.spot.online");
+  $("oschad").href=intent(pay,"ua.oschadbank.flumo");
+  $("raif").href=intent(pay,"ua.raiffeisen.myraif");
+  $("abank").href=intent(pay,"ua.com.abank");
+  $("sense").href=intent(pay,"ua.alfabank.mobile.android");
+
+  $("copyDetailsBtn").addEventListener("click",()=>copyText(
+    NAME+"\nIBAN: "+IBAN+"\nРНОКПП: "+TAX+"\nСума: "+Number(a).toFixed(2)+" грн\nПризначення: "+p,
+    "Реквізити скопійовано"
+  ));
+}else{
+  // Generator always starts with empty, editable fields.
+  $("sumInput").value="";
+  $("purposeInput").value="";
+}
+</script>
+</body>
+</html>
